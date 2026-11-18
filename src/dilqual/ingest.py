@@ -14,7 +14,7 @@ from .io import write_jsonl
 TEXT_SUFFIXES = {".md", ".txt"}
 WORD_SUFFIXES = {".docx"}
 PDF_SUFFIXES = {".pdf"}
-TABLE_SUFFIXES = {".xlsx", ".xls", ".csv"}
+TABLE_SUFFIXES = {".xlsx", ".csv"}
 SUPPORTED_SUFFIXES = TEXT_SUFFIXES | WORD_SUFFIXES | PDF_SUFFIXES | TABLE_SUFFIXES
 
 
