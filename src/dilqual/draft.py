@@ -8,7 +8,7 @@ import numpy as np
 from pydantic import BaseModel, Field
 
 from . import llm
-from .config import Code, Codebook, Project, get_claude_client
+from .config import Code, Codebook, Project, get_claude_client, has_voyage_key
 from .embed import segment_embeddings
 from .io import read_jsonl
 
@@ -41,8 +41,15 @@ def representative_sample(project: Project, budget_chars: int) -> list[dict]:
     """Pick segments that cover the range of content when the corpus is too large.
 
     Clusters segment embeddings and takes the segments closest to each cluster
-    centre, round-robin, until the character budget is used.
+    centre, round-robin, until the character budget is used. Without a Voyage
+    key, takes evenly spaced segments across all transcripts instead.
     """
+    if not has_voyage_key():
+        all_segments = read_jsonl(project.segments_path)
+        total = sum(len(s["text"]) for s in all_segments)
+        step = max(1, -(-total // budget_chars))
+        return all_segments[::step]
+
     from sklearn.cluster import KMeans
 
     segments, vectors = segment_embeddings(project)
@@ -77,7 +84,8 @@ def draft_codebook(project: Project) -> tuple[DraftCodebook, bool]:
         segments = representative_sample(project, _MAX_TRANSCRIPT_CHARS)
 
     existing = ""
-    if project.codebook_path.exists():
+    # The untouched template from `qual init` is not a real codebook: start fresh.
+    if project.codebook_path.exists() and not project.load_codebook().is_placeholder():
         existing = (
             "The team already has a codebook, below. Keep its codes and ids unless "
             "the transcripts clearly show a code should be split, merged or redefined, "

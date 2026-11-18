@@ -10,9 +10,9 @@ validation, and every quote that ends up in a paper.
 
 - [ ] Transcripts are **final** and **de-identified** (names, places, phone numbers).
 - [ ] Your IRB protocol and data agreements allow sending transcript text to Anthropic
-      and Voyage AI.
+      (and to Voyage AI, if you use the optional embeddings).
 - [ ] The project folder lives on approved secure storage, **not** inside this repo.
-- [ ] `ANTHROPIC_API_KEY` and `VOYAGE_API_KEY` are in your `.env`.
+- [ ] `ANTHROPIC_API_KEY` is in your `.env` (`VOYAGE_API_KEY` is optional).
 
 ## 1. Create the project
 
@@ -35,7 +35,7 @@ column names under `tabular:`).
 
 Fill `$P/transcripts/metadata.csv` with one row per transcript: `transcript_id` is the
 file name without extension; add any columns you want results broken down by (site,
-group type, round...).
+group type, round...). This is optional: columns left empty are simply not reported.
 
 ## 2. Ingest
 
@@ -53,14 +53,15 @@ Check the table it prints (also in `outputs/ingest_summary.csv`):
 
 ## 3. Draft the codebook (optional)
 
-Skip this if the team already has a codebook; write it in `codebook.yaml`.
+Skip this if the team already has a codebook; write it in `codebook.yaml`, replacing
+the placeholder code that `qual init` put there (`qual code` refuses to run on it).
 
 ```bash
 uv run qual draft-codebook -p $P
 ```
 
-Claude reads all transcripts (or, for very large projects, a representative sample
-chosen with embeddings) and writes:
+Claude reads all transcripts (or, for very large projects, a sample: chosen with
+embeddings if you have a Voyage key, evenly spaced otherwise) and writes:
 
 - `outputs/codebook_draft.yaml`: proposed codes with definitions, include/exclude rules
   and example quotes
@@ -71,8 +72,8 @@ include/exclude rules: they are what Claude follows when coding. Save the final 
 as `$P/codebook.yaml`. If a `codebook.yaml` already exists, the draft refines it instead
 of starting from scratch.
 
-Use `uv run qual search -p $P "query"` to look for segments about a topic when deciding
-whether a code is needed.
+With a Voyage key, `uv run qual search -p $P "query"` finds segments about a topic,
+which helps when deciding whether a code is needed.
 
 ## 4. Code
 
@@ -82,14 +83,17 @@ uv run qual code -p $P             # live, a few minutes for a typical project
 uv run qual code -p $P --batch --wait   # Batch API: half price, usually under an hour
 ```
 
-For each segment:
+For each segment, **Claude decides** each code: applies yes/no, a verbatim quote as
+evidence, and a one-sentence rationale. The codebook is cached between requests, so
+repeated instructions cost little.
 
-1. **Pre-screen (Voyage embeddings).** The segment is compared with every code
-   definition and only the `prefilter.top_k` closest codes go to Claude. The rest are
-   recorded as "not applied (screened out)". This keeps large codebooks affordable.
-2. **Claude decides** each candidate code: applies yes/no, a verbatim quote as evidence,
-   and a one-sentence rationale. The codebook is cached between requests, so repeated
-   instructions cost little.
+**Optional pre-screen (needs `VOYAGE_API_KEY`).** With a Voyage key, each segment is
+first compared with every code definition and only the `prefilter.top_k` closest codes go
+to Claude; the rest are recorded as "not applied (screened out)". This keeps codebooks
+with many codes affordable. Without the key the step is skipped (the command says so)
+and Claude evaluates every code.
+
+If the key or model name is wrong, the run stops at the first request with the reason.
 
 Coding is resumable: re-running `qual code` only codes segments that are missing or
 failed. **Changing `codebook.yaml` means everything is recoded** with the new version on
@@ -103,9 +107,9 @@ Do this before trusting or reporting the results.
 uv run qual validate -p $P --make-sample 60
 ```
 
-This writes `outputs/validation/human_coding_template.xlsx`. Half the sample is
-weighted toward segments likely to contain each code (so rare codes get enough
-examples), half is random. It doesn't show Claude's codes.
+This writes `outputs/validation/human_coding_template.xlsx`, a random sample of segments
+that doesn't show Claude's codes. (With the Voyage pre-screen, half the sample is
+weighted toward segments likely to contain each code, so rare codes get enough examples.)
 
 Two or more team members each fill in their own copy (1 = applies, blank = no, and their
 initials in `coded_by`), then:
@@ -152,8 +156,8 @@ uv run qual report -p $P
 | `models.coding_model` | `claude-opus-5-5` | Model for coding |
 | `models.coding_effort` | `medium` | `low` is faster and cheaper; raise it if validation shows careless errors |
 | `models.drafting_model` / `drafting_effort` | `claude-opus-5-5` / `high` | One request per project, so higher effort is cheap |
-| `models.embedding_model` | `voyage-4` | `voyage-4-large` for best quality, `voyage-4-lite` for cheapest |
-| `prefilter.top_k` | `5` | Codes sent to Claude per segment |
+| `models.embedding_model` | `voyage-4` | Only used with `VOYAGE_API_KEY`. `voyage-4-large` for best quality, `voyage-4-lite` for cheapest |
+| `prefilter.top_k` | `5` | Codes sent to Claude per segment (pre-screen only) |
 | `prefilter.min_similarity` | none | Also send any code above this similarity |
 
 On models that support it, coding requests opt into Anthropic's server-side refusal

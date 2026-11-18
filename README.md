@@ -11,8 +11,8 @@ transcripts (.docx .pdf .md .txt .xlsx .csv)
         │
    qual draft-codebook ────► Claude proposes codes ──► team reviews ──► codebook.yaml
         │
-   qual code ──────────────► Voyage embeddings pre-screen which codes fit each segment,
-        │                    Claude decides each one with a verbatim quote + rationale
+   qual code ──────────────► Claude decides each code for each segment, with a verbatim
+        │                    quote + rationale (optional: Voyage embeddings pre-screen)
    qual validate ──────────► agreement with human coders (kappa per code)
         │
    qual report ────────────► results.xlsx + quote_report.html
@@ -29,10 +29,14 @@ transcripts (.docx .pdf .md .txt .xlsx .csv)
    uv sync
    ```
 
-3. Copy `.env.example` to `.env` and add your keys:
-   - `ANTHROPIC_API_KEY` for Claude
-   - `VOYAGE_API_KEY` for embeddings (Anthropic doesn't offer an embeddings model;
-     Voyage AI is the provider it recommends)
+3. Copy `.env.example` to `.env` and add your `ANTHROPIC_API_KEY`.
+
+That is all a team needs: **an Anthropic API key and its transcripts.**
+
+`VOYAGE_API_KEY` is optional. With it, embeddings pre-screen which codes Claude evaluates
+for each segment (cheaper for codebooks with many codes) and `qual search` works. Without
+it, Claude evaluates every code for every segment, which is the more thorough option and
+fine for most projects.
 
 Run commands with `uv run qual ...` from the repo folder.
 
@@ -43,8 +47,9 @@ uv run qual init /secure/drive/my-study        # creates config.yaml, codebook.y
 # edit config.yaml, copy final transcripts into transcripts/, fill transcripts/metadata.csv
 
 uv run qual ingest -p /secure/drive/my-study
-uv run qual draft-codebook -p /secure/drive/my-study   # optional: inductive draft
-uv run qual code -p /secure/drive/my-study --dry-run   # size of the run, no API calls
+uv run qual draft-codebook -p /secure/drive/my-study   # skip if you already have a codebook
+# review outputs/codebook_draft.yaml as a team and save the final version as codebook.yaml
+uv run qual code -p /secure/drive/my-study --dry-run   # size of the run, no Claude calls
 uv run qual code -p /secure/drive/my-study             # or --batch for half price
 uv run qual validate -p /secure/drive/my-study --make-sample 60
 uv run qual validate -p /secure/drive/my-study --human coder1.xlsx coder2.xlsx
@@ -61,8 +66,9 @@ To try the workflow without real data, use the fictional example project:
 
 - **Keep project folders outside this repo**, on approved secure storage. `projects/`
   is git-ignored except for the fictional example, but don't rely on that.
-- Transcript text is sent to Anthropic (Claude) and Voyage AI (embeddings). Confirm your
-  IRB protocol and data agreements allow this, and de-identify transcripts first.
+- Transcript text is sent to Anthropic (Claude) and, only if you set `VOYAGE_API_KEY`,
+  to Voyage AI (embeddings). Confirm your IRB protocol and data agreements allow this,
+  and de-identify transcripts first.
 - Never commit `.env` or anything in a project's `outputs/`.
 
 ## Development

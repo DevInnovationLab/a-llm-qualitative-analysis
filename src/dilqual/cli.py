@@ -186,7 +186,11 @@ def main(argv: list[str] | None = None) -> None:
         "Have Claude propose a codebook from the transcripts.",
     )
 
-    p = add("search", cmd_search, "Find segments related to a question (embeddings).")
+    p = add(
+        "search",
+        cmd_search,
+        "Find segments related to a question (needs VOYAGE_API_KEY).",
+    )
     p.add_argument("query")
     p.add_argument("--top", type=int, default=10)
 

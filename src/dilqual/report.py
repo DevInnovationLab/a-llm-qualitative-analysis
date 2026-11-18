@@ -72,6 +72,8 @@ def write_excel(project: Project, results: Results) -> Path:
             writer, sheet_name="by_transcript", index=False
         )
         for col in meta_cols:
+            if results.segments[col].replace("", pd.NA).isna().all():
+                continue  # metadata column not filled in: nothing to break down by
             by_group(results, col).to_excel(
                 writer, sheet_name=f"by_{col}"[:31], index=False
             )

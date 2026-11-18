@@ -152,3 +152,36 @@ def test_compare_metrics():
     assert stats["recall"] == 0.5
     assert stats["missed_by_prescreen"] == 1
     assert stats["kappa"] == pytest.approx(0.0)
+
+
+def test_runs_with_anthropic_key_only(project_dir, fakes, monkeypatch):
+    """No Voyage key: no embedding calls, Claude evaluates every code."""
+    monkeypatch.setattr("dilqual.embed.has_voyage_key", lambda: False)
+    project = Project(project_dir)
+    ingest(project)
+
+    assert coding.estimate(project)["code_decisions_screened_out"] == 0
+    assert coding.code_live(project, workers=2) == {"coded": 8, "errors": 0}
+    assert fakes.voyage.calls == 0
+    assert all(
+        len(r["messages"][0]["content"].rsplit(": ", 1)[1].split(", ")) == 5
+        for r in fakes.claude.messages.requests
+    )
+
+    xlsx, html, results = build_reports(project)
+    assert results.matrix.notna().all().all()
+    assert not results.screened.any().any()
+    # The validation sample falls back to a purely random draw.
+    sheet = pd.read_excel(make_sample(project, n=6), sheet_name=CODING_SHEET)
+    assert len(sheet) == 6
+
+
+def test_placeholder_codebook_is_not_coded(project_dir, fakes):
+    from dilqual import templates
+
+    project = Project(project_dir)
+    ingest(project)
+    project.codebook_path.write_text(templates.CODEBOOK_YAML, encoding="utf-8")
+    assert project.load_codebook().is_placeholder()
+    with pytest.raises(ValueError, match="placeholder"):
+        coding.code_live(project)
