@@ -1,0 +1,31 @@
+codes:
+  - id: peer_accountability
+    name: Peer accountability
+    definition: Members describe other group members' expectations, reminders or social pressure as a reason they keep saving or repaying.
+    include: Mentions of shame, encouragement, or being watched by the group in relation to saving or repayment.
+    exclude: General friendship or social benefits not linked to saving or repayment (use social_support).
+    examples: []
+  - id: income_volatility
+    name: Income volatility
+    definition: Irregular or seasonal income makes it hard to save the agreed amount.
+    include: Harvest cycles, casual work, sick days, or market prices affecting ability to save.
+    exclude: Spending choices unrelated to income changes.
+    examples: []
+  - id: loan_productive_use
+    name: Productive use of loans
+    definition: Loans used to start or grow an income-generating activity.
+    include: Buying stock, inputs, tools or animals for a business or farm.
+    exclude: Consumption, school fees, or health spending (use loan_consumption_emergency).
+    examples: []
+  - id: loan_consumption_emergency
+    name: Loans for consumption or emergencies
+    definition: Loans used for household needs, school fees, health costs, or shocks.
+    include: Medical bills, food shortages, funerals, school fees.
+    exclude: Business or farm investment (use loan_productive_use).
+    examples: []
+  - id: social_support
+    name: Social support
+    definition: The group provides friendship, advice or emotional support beyond financial services.
+    include: Members helping each other, sharing advice, feeling less alone.
+    exclude: Pressure to save or repay (use peer_accountability).
+    examples: []
