@@ -104,6 +104,7 @@ def project_dir(tmp_path):
 @pytest.fixture
 def fakes(monkeypatch):
     voyage, claude = FakeVoyage(), FakeClaude()
+    monkeypatch.setenv("VOYAGE_API_KEY", "test-key")
     monkeypatch.setattr("dilqual.embed.get_voyage_client", lambda: voyage)
     monkeypatch.setattr("dilqual.coding.get_claude_client", lambda: claude)
     return SimpleNamespace(voyage=voyage, claude=claude)

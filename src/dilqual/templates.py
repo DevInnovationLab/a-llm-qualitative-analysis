@@ -41,10 +41,12 @@ models:
   coding_effort: medium      # low | medium | high | xhigh | max
   drafting_model: claude-opus-5-5
   drafting_effort: high
-  embedding_model: voyage-4  # Voyage AI; voyage-4-large for best quality
+  embedding_model: voyage-4  # Voyage AI; only used when VOYAGE_API_KEY is set
 
-# Embedding pre-screen: Claude only evaluates the top_k most similar codes per segment.
-# Check `missed_by_prescreen` in the validation report; raise top_k if it is above 0.
+# Optional embedding pre-screen (needs VOYAGE_API_KEY; skipped without it, and Claude
+# then evaluates every code for every segment). With it, Claude only evaluates the
+# top_k most similar codes per segment. Check `missed_by_prescreen` in the validation
+# report; raise top_k if it is above 0.
 prefilter:
   enabled: true
   top_k: 5

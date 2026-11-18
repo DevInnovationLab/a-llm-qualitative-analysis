@@ -7,6 +7,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
+import anthropic
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
@@ -16,6 +17,12 @@ from .embed import prescreen
 from .io import append_jsonl, read_jsonl
 
 MAX_TOKENS = 16000
+
+_FATAL_ERRORS = (
+    anthropic.AuthenticationError,
+    anthropic.PermissionDeniedError,
+    anthropic.NotFoundError,
+)
 
 
 class CodeDecision(BaseModel):
@@ -149,6 +156,12 @@ def plan(
     Returns codebook, all segments, candidates per segment, and segments to code.
     """
     codebook = project.load_codebook()
+    if codebook.is_placeholder():
+        raise ValueError(
+            f"{project.codebook_path.name} still holds the placeholder from `qual init`. "
+            "Write your codes there, or run `qual draft-codebook` and save the "
+            "reviewed draft as the codebook."
+        )
     segments, candidates, scores = prescreen(project, codebook)
     (project.outputs / "prescreen.json").write_text(
         json.dumps({"candidates": candidates, "similarity": scores}), encoding="utf-8"
@@ -211,6 +224,12 @@ def code_live(project: Project, workers: int = 4) -> dict[str, int]:
                 codebook_hash=codebook_hash,
                 model=models.coding_model,
             )
+        except _FATAL_ERRORS as exc:
+            # A bad key or model name fails every segment the same way: stop now.
+            raise RuntimeError(
+                f"Claude rejected the request ({type(exc).__name__}): {exc.message} "
+                "Check ANTHROPIC_API_KEY in .env and models.coding_model in config.yaml."
+            ) from exc
         except Exception as exc:  # recorded and retried on the next run
             return make_record(
                 segment,

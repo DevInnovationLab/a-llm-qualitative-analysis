@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
 
-from .config import Codebook, Project, get_voyage_client
+from .config import Codebook, Project, get_voyage_client, has_voyage_key
 from .io import read_jsonl
 
 # Voyage accepts up to 1,000 texts per request, subject to a per-request token cap.
@@ -107,19 +108,34 @@ def select_candidates(
 def prescreen(
     project: Project, codebook: Codebook, client=None
 ) -> tuple[list[dict], dict[str, list[str]], dict[str, dict[str, float]]]:
-    """Return segments, candidate code ids per segment, and similarity scores."""
+    """Return segments, candidate code ids per segment, and similarity scores.
+
+    Without a Voyage key (or with the pre-screen disabled) no embeddings are
+    computed: Claude evaluates every code for every segment, and the similarity
+    scores are empty.
+    """
+    cfg = project.config.prefilter
+    if not cfg.enabled or not (client is not None or has_voyage_key()):
+        segments = read_jsonl(project.segments_path)
+        if not segments:
+            raise FileNotFoundError("No segments found. Run `qual ingest` first.")
+        if cfg.enabled:
+            print(
+                "Note: VOYAGE_API_KEY is not set, so the embedding pre-screen is "
+                "skipped and Claude evaluates every code for every segment.",
+                file=sys.stderr,
+            )
+        all_ids = [c.id for c in codebook.codes]
+        return segments, {s["segment_id"]: list(all_ids) for s in segments}, {}
+
     segments, seg_vectors = segment_embeddings(project, client)
     code_vectors = code_embeddings(project, codebook, client)
     similarity = seg_vectors @ code_vectors.T
     code_ids = [c.id for c in codebook.codes]
 
-    cfg = project.config.prefilter
-    if cfg.enabled:
-        candidate_lists = select_candidates(
-            similarity, code_ids, cfg.top_k, cfg.min_similarity
-        )
-    else:
-        candidate_lists = [list(code_ids) for _ in segments]
+    candidate_lists = select_candidates(
+        similarity, code_ids, cfg.top_k, cfg.min_similarity
+    )
 
     candidates = {
         s["segment_id"]: c for s, c in zip(segments, candidate_lists, strict=True)

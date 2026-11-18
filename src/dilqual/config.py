@@ -183,10 +183,18 @@ class Code(BaseModel):
         return "\n".join(p for p in parts if p)
 
 
+# The id of the single code `qual init` writes into a new codebook.yaml.
+PLACEHOLDER_CODE_ID = "example_code"
+
+
 class Codebook(BaseModel):
     """The full codebook."""
 
     codes: list[Code]
+
+    def is_placeholder(self) -> bool:
+        """Whether this is still the untouched template written by `qual init`."""
+        return [c.id for c in self.codes] == [PLACEHOLDER_CODE_ID]
 
     @classmethod
     def load(cls, path: Path) -> Codebook:
@@ -241,6 +249,12 @@ def get_claude_client():
     return anthropic.Anthropic()
 
 
+def has_voyage_key() -> bool:
+    """Whether a Voyage AI key is configured. Embeddings are optional without it."""
+    load_dotenv()
+    return bool(os.getenv("VOYAGE_API_KEY"))
+
+
 def get_voyage_client():
     """Create a Voyage AI client from VOYAGE_API_KEY (loaded from .env if present)."""
     import voyageai
@@ -248,6 +262,7 @@ def get_voyage_client():
     load_dotenv()
     if not os.getenv("VOYAGE_API_KEY"):
         raise RuntimeError(
-            "VOYAGE_API_KEY is not set. Add it to a .env file (see .env.example)."
+            "VOYAGE_API_KEY is not set. This step needs Voyage AI embeddings; "
+            "add the key to a .env file (see .env.example)."
         )
     return voyageai.Client()
